@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cybthreat — Defending the Digital World</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0c10;
+      --bg2:       #0d1018;
+      --bg3:       #141720;
+      --surface:   #161b24;
+      --surface2:  #1c2230;
+      --border:    rgba(255,255,255,0.07);
+      --border2:   rgba(255,255,255,0.12);
+      --text:      #e8eaf0;
+      --text2:     #8b93a8;
+      --text3:     #555d72;
+      --accent:    #00e5a0;
+      --accent2:   #00ffb3;
+      --accent-dim:rgba(0,229,160,0.1);
+      --red:       #ff4d4d;
+      --red-bg:    rgba(255,77,77,0.1);
+      --amber:     #ffb547;
+      --amber-bg:  rgba(255,181,71,0.1);
+      --blue:      #4d9eff;
+      --blue-bg:   rgba(77,158,255,0.1);
+      --purple:    #a78bfa;
+      --font:      'Syne', sans-serif;
+      --mono:      'JetBrains Mono', monospace;
+      --r:         10px;
+      --rl:        16px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Scanline ── */
+    .scanline {
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);
+      pointer-events: none; z-index: 1000;
+    }
+
+    /* ── Noise grain overlay ── */
+    body::before {
+      content:'';
+      position:fixed; inset:0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events:none; z-index:999; opacity:0.4;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,12,16,0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      padding: 0 28px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: var(--text);
+    }
+    .logo-shield { color: var(--accent); display: flex; }
+    .logo-name { font-size: 20px; font-weight: 900; letter-spacing: -0.03em; }
+    .logo-v { font-family: var(--mono); font-size: 10px; color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2); padding: 2px 7px; border-radius: 4px; letter-spacing: 0.08em; margin-left: 2px; }
+    .nav-links { display: flex; align-items: center; gap: 2px; }
+    .nav-a {
+      font-size: 13px; font-weight: 600; color: var(--text2);
+      text-decoration: none; padding: 7px 14px; border-radius: 7px;
+      transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+    }
+    .nav-a:hover { color: var(--text); background: var(--surface); }
+    .nav-cta {
+      background: var(--accent); color: #001a0e !important;
+      font-weight: 700; border-radius: 7px; padding: 7px 18px;
+      margin-left: 8px; transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--accent2) !important; }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative; overflow: hidden;
+      min-height: 100vh; display: flex; align-items: center;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 60% at 60% 40%, rgba(0,229,160,0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 20% 80%, rgba(77,158,255,0.05) 0%, transparent 60%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: radial-gradient(ellipse 90% 80% at 55% 45%, black 20%, transparent 75%);
+    }
+    /* animated orb */
+    .hero-orb {
+      position: absolute; right: 8%; top: 50%; transform: translateY(-50%);
+      width: 480px; height: 480px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,160,0.12) 0%, rgba(0,229,160,0.04) 40%, transparent 70%);
+      animation: orb-pulse 8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes orb-pulse { 0%,100%{transform:translateY(-50%) scale(1);opacity:0.8} 50%{transform:translateY(-50%) scale(1.08);opacity:1} }
+
+    .hero-inner {
+      position: relative; z-index: 2;
+      max-width: 1200px; margin: 0 auto; padding: 120px 28px 80px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center;
+    }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2);
+      padding: 5px 14px; border-radius: 20px; margin-bottom: 24px;
+      letter-spacing: 0.04em; width: fit-content;
+    }
+    .blink { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: blink 1.5s infinite; flex-shrink: 0; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+    .hero-h1 {
+      font-size: clamp(42px, 6vw, 72px); font-weight: 900;
+      line-height: 1.0; letter-spacing: -0.05em; margin-bottom: 24px;
+    }
+    .hero-h1 .line2 { color: var(--accent); }
+    .hero-h1 .line3 { color: var(--text2); font-weight: 700; font-size: 0.65em; letter-spacing: -0.02em; margin-top: 6px; display: block; }
+
+    .hero-p {
+      font-size: 15px; color: var(--text2); line-height: 1.75;
+      max-width: 460px; margin-bottom: 36px;
+    }
+    .hero-btns { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 48px; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #001a0e; font-family: var(--font);
+      font-size: 14px; font-weight: 700; padding: 12px 24px; border-radius: 9px;
+      border: none; cursor: pointer; text-decoration: none; transition: all 0.2s;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .btn-outline {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text); font-family: var(--font);
+      font-size: 14px; font-weight: 600; padding: 12px 24px; border-radius: 9px;
+      border: 1px solid var(--border2); cursor: pointer; text-decoration: none; transition: all 0.2s;
+    }
+    .btn-outline:hover { background: var(--surface); border-color: rgba(255,255,255,0.2); }
+
+    .hero-trust { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .trust-item { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; color: var(--text3); }
+    .trust-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+
+    /* Hero right — stat cards */
+    .hero-right { display: flex; flex-direction: column; gap: 16px; }
+    .hero-stat-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--rl); padding: 20px 24px;
+      display: flex; align-items: center; gap: 18px;
+      transition: border-color 0.2s, transform 0.2s;
+      animation: card-float linear infinite;
+    }
+    .hero-stat-card:nth-child(1) { animation-duration: 7s; animation-delay: 0s; }
+    .hero-stat-card:nth-child(2) { animation-duration: 9s; animation-delay: -3s; }
+    .hero-stat-card:nth-child(3) { animation-duration: 8s; animation-delay: -5s; }
+    @keyframes card-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+    .hero-stat-card:hover { border-color: rgba(0,229,160,0.3); }
+    .stat-icon {
+      width: 46px; height: 46px; border-radius: 12px;
+      background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); flex-shrink: 0;
+    }
+    .stat-icon.blue { background: var(--blue-bg); border-color: rgba(77,158,255,0.2); color: var(--blue); }
+    .stat-icon.red  { background: var(--red-bg);  border-color: rgba(255,77,77,0.2);  color: var(--red);  }
+    .stat-num  { font-family: var(--mono); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+    .stat-lbl  { font-size: 12px; color: var(--text2); margin-top: 3px; }
+
+    /* ── SECTION SHARED ── */
+    section { position: relative; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 28px; }
+    .sec-tag {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2);
+      padding: 4px 12px; border-radius: 20px; margin-bottom: 16px;
+      letter-spacing: 0.05em;
+    }
+    .sec-h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; letter-spacing: -0.04em; margin-bottom: 14px; }
+    .sec-p { font-size: 15px; color: var(--text2); line-height: 1.75; max-width: 560px; }
+    .sec-head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 48px; flex-wrap: wrap; }
+
+    /* ── TOOLS ── */
+    .tools-section { padding: 100px 0; background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); }
+    .tools-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .tool-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--rl); padding: 28px;
+      display: flex; flex-direction: column; gap: 0;
+      transition: all 0.25s; position: relative; overflow: hidden;
+      text-decoration: none; color: inherit;
+    }
+    .tool-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,229,160,0.04) 0%, transparent 60%);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .tool-card:hover { border-color: rgba(0,229,160,0.3); transform: translateY(-3px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .tool-card:hover::before { opacity: 1; }
+    .tool-card.coming-soon { opacity: 0.6; cursor: default; }
+    .tool-card.coming-soon:hover { transform: none; border-color: var(--border2); box-shadow: none; }
+    .tool-card.coming-soon:hover::before { opacity: 0; }
+
+    .tool-badge-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .tool-icon {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; flex-shrink: 0;
+    }
+    .tool-icon.green  { background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2); }
+    .tool-icon.blue   { background: var(--blue-bg);  border: 1px solid rgba(77,158,255,0.2); }
+    .tool-icon.red    { background: var(--red-bg);   border: 1px solid rgba(255,77,77,0.2); }
+    .tool-icon.purple { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.2); }
+    .tool-icon.amber  { background: var(--amber-bg); border: 1px solid rgba(255,181,71,0.2); }
+
+    .live-pill   { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,229,160,0.25); letter-spacing: 0.06em; display: flex; align-items: center; gap: 5px; }
+    .soon-pill   { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; background: rgba(255,255,255,0.05); color: var(--text3); border: 1px solid var(--border); }
+    .live-dot    { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: blink 1.5s infinite; }
+
+    .tool-name { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .tool-desc { font-size: 13px; color: var(--text2); line-height: 1.6; flex: 1; margin-bottom: 20px; }
+    .tool-tags  { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
+    .tag { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 5px; background: var(--bg3); border: 1px solid var(--border); color: var(--text3); }
+    .tool-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: var(--accent);
+      background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2);
+      padding: 7px 14px; border-radius: 7px; text-decoration: none;
+      transition: all 0.2s; width: fit-content; margin-top: auto;
+    }
+    .tool-link:hover { background: rgba(0,229,160,0.2); }
+    .tool-link-disabled {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 700; color: var(--text3);
+      background: transparent; border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 7px;
+      width: fit-content; margin-top: auto; cursor: not-allowed;
+    }
+
+    /* ── SERVICES / AWARENESS ── */
+    .services-section { padding: 100px 0; background: var(--bg2); border-top: 1px solid var(--border); }
+    .awareness-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .awareness-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--rl); padding: 24px; transition: all 0.25s;
+    }
+    .awareness-card:hover { border-color: rgba(0,229,160,0.25); transform: translateY(-2px); }
+    .aware-icon {
+      width: 42px; height: 42px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 16px;
+    }
+    .aware-title { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .aware-body  { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 14px; }
+    .aware-link  { font-family: var(--mono); font-size: 11px; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 5px; transition: gap 0.2s; }
+    .aware-link:hover { gap: 9px; }
+
+    /* ── FUTURE / ROADMAP ── */
+    .future-section { padding: 100px 0; background: var(--bg); border-top: 1px solid var(--border); }
+    .roadmap-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .roadmap-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--rl); padding: 28px; position: relative;
+      overflow: hidden; transition: all 0.25s;
+    }
+    .roadmap-card::after {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 3px; height: 100%; background: linear-gradient(180deg, var(--accent), transparent);
+    }
+    .roadmap-card.blue::after { background: linear-gradient(180deg, var(--blue), transparent); }
+    .roadmap-card.red::after  { background: linear-gradient(180deg, var(--red), transparent); }
+    .roadmap-card.purple::after { background: linear-gradient(180deg, var(--purple), transparent); }
+    .roadmap-card:hover { border-color: rgba(0,229,160,0.25); transform: translateY(-2px); }
+
+    .rm-phase { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+    .rm-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 10px; }
+    .rm-body  { font-size: 13px; color: var(--text2); line-height: 1.65; margin-bottom: 16px; }
+    .rm-tags  { display: flex; flex-wrap: wrap; gap: 6px; }
+    .rm-tag   { font-family: var(--mono); font-size: 10px; padding: 3px 9px; border-radius: 20px; background: var(--bg3); border: 1px solid var(--border); color: var(--text3); }
+
+    /* ── TEAM ── */
+    .team-section { padding: 100px 0; background: var(--bg2); border-top: 1px solid var(--border); }
+    .team-founder {
+      background: var(--surface); border: 1px solid rgba(0,229,160,0.2);
+      border-radius: var(--rl); padding: 40px; display: grid;
+      grid-template-columns: auto 1fr; gap: 32px; align-items: center;
+      margin-bottom: 40px; position: relative; overflow: hidden;
+    }
+    .team-founder::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 200px; height: 200px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .founder-avatar {
+      width: 90px; height: 90px; border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0,229,160,0.3), rgba(77,158,255,0.2));
+      border: 2px solid rgba(0,229,160,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 900; color: var(--accent);
+      font-family: var(--mono); flex-shrink: 0;
+    }
+    .founder-role { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+    .founder-name { font-size: 28px; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 10px; }
+    .founder-bio  { font-size: 14px; color: var(--text2); line-height: 1.7; max-width: 560px; }
+
+    .team-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+    .team-card {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: var(--r); padding: 20px 16px; text-align: center;
+      transition: all 0.2s;
+    }
+    .team-card:hover { border-color: rgba(0,229,160,0.25); transform: translateY(-2px); }
+    .team-avatar {
+      width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800; font-family: var(--mono);
+      background: var(--surface2); border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+    .team-member-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .team-member-role { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+    /* ── CTA STRIP ── */
+    .cta-section {
+      padding: 80px 0;
+      background: linear-gradient(135deg, rgba(0,229,160,0.06) 0%, transparent 50%);
+      border-top: 1px solid var(--border);
+    }
+    .cta-inner { text-align: center; }
+    .cta-h2 { font-size: clamp(28px, 4vw, 48px); font-weight: 900; letter-spacing: -0.04em; margin-bottom: 16px; }
+    .cta-p  { font-size: 15px; color: var(--text2); margin-bottom: 32px; }
+    .cta-btns { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg); border-top: 1px solid var(--border); padding: 40px 0;
+    }
+    .footer-inner {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px; margin-bottom: 40px;
+    }
+    .footer-brand .logo-name { font-size: 22px; }
+    .footer-tagline { font-size: 13px; color: var(--text3); margin-top: 8px; line-height: 1.6; max-width: 260px; }
+    .footer-col-title { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+    .footer-links { display: flex; flex-direction: column; gap: 8px; }
+    .footer-link { font-size: 13px; color: var(--text2); text-decoration: none; transition: color 0.2s; }
+    .footer-link:hover { color: var(--accent); }
+    .footer-bottom { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 24px; flex-wrap: wrap; gap: 12px; }
+    .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+    .footer-love { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+    .footer-love span { color: var(--red); }
+
+    /* ── Animations ── */
+    .fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── Responsive ── */
+    @media(max-width:1000px){
+      .tools-grid { grid-template-columns: repeat(2,1fr); }
+      .team-grid  { grid-template-columns: repeat(3,1fr); }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+    }
+    @media(max-width:800px){
+      .hero-inner { grid-template-columns: 1fr; padding: 80px 20px 60px; }
+      .hero-right { display: none; }
+      .awareness-grid { grid-template-columns: 1fr; }
+      .roadmap-grid   { grid-template-columns: 1fr; }
+      .team-founder   { grid-template-columns: 1fr; text-align: center; }
+      .team-grid      { grid-template-columns: repeat(2,1fr); }
+      .footer-inner   { grid-template-columns: 1fr; }
+    }
+    @media(max-width:600px){
+      .tools-grid { grid-template-columns: 1fr; }
+      .nav-inner  { padding: 0 16px; }
+      .container  { padding: 0 16px; }
+    }
+
+    ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-track{background:var(--bg2)} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  </style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- ── NAV ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <span class="logo-shield">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/>
+          <path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span class="logo-name">Cybthreat</span>
+      <span class="logo-v">v2</span>
+    </a>
+    <div class="nav-links">
+      <a href="#tools" class="nav-a">Tools</a>
+      <a href="#awareness" class="nav-a">Awareness</a>
+      <a href="#roadmap" class="nav-a">Roadmap</a>
+      <a href="#team" class="nav-a">Team</a>
+      <a href="#tools" class="nav-a nav-cta">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/></svg>
+        Launch a Tool
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-orb"></div>
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-tag">
+        <span class="blink"></span>
+        Active — 10+ Security Researchers
+      </div>
+      <h1 class="hero-h1">
+        Defending<br/>
+        <span class="line2">the Digital</span>
+        <span class="line3">World — One Tool at a Time</span>
+      </h1>
+      <p class="hero-p">Cybthreat is an open-source cybersecurity team building free, client-side tools for SOC analysts, IR teams, and security professionals. No data leaves your browser. Ever.</p>
+      <div class="hero-btns">
+        <a href="#tools" class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+          Explore Our Tools
+        </a>
+        <a href="#team" class="btn-outline">Meet the Team →</a>
+      </div>
+      <div class="hero-trust">
+        <div class="trust-item"><span class="trust-dot"></span>100% Client-Side</div>
+        <div class="trust-item"><span class="trust-dot"></span>Open Source</div>
+        <div class="trust-item"><span class="trust-dot"></span>Zero Telemetry</div>
+        <div class="trust-item"><span class="trust-dot"></span>GDPR Safe</div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-stat-card">
+        <div class="stat-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="stat-num">2</div>
+          <div class="stat-lbl">Free Tools Live</div>
+        </div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="stat-icon blue">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </div>
+        <div>
+          <div class="stat-num">10+</div>
+          <div class="stat-lbl">Active Researchers</div>
+        </div>
+      </div>
+      <div class="hero-stat-card">
+        <div class="stat-icon red">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+        </div>
+        <div>
+          <div class="stat-num">∞</div>
+          <div class="stat-lbl">Threats Blocked</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TOOLS ── -->
+<section class="tools-section" id="tools">
+  <div class="container">
+    <div class="sec-head-row fade-up">
+      <div>
+        <div class="sec-tag">⚡ Our Arsenal</div>
+        <h2 class="sec-h2">Free Security Tools</h2>
+        <p class="sec-p">Battle-tested, browser-only tools built by the Cybthreat team. No sign-up, no servers, no strings attached.</p>
+      </div>
+    </div>
+    <div class="tools-grid">
+
+      <!-- Tool 1 — Email Analyser -->
+      <a href="./email-analyser/index.html" class="tool-card fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon green">✉️</div>
+          <span class="live-pill"><span class="live-dot"></span>LIVE</span>
+        </div>
+        <div class="tool-name">Email Header Analyser</div>
+        <p class="tool-desc">Parse raw email headers for phishing indicators, SPF/DKIM/DMARC failures, routing anomalies, malicious URLs, and attachment threats with optional VirusTotal integration.</p>
+        <div class="tool-tags">
+          <span class="tag">SPF</span><span class="tag">DKIM</span><span class="tag">DMARC</span>
+          <span class="tag">GeoIP</span><span class="tag">URL Scan</span><span class="tag">IOC Extract</span>
+        </div>
+        <span class="tool-link">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Launch Tool
+        </span>
+      </a>
+
+      <!-- Tool 2 — Log Sanitizer -->
+      <a href="./log-sanitizer/index.html" class="tool-card fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon blue">🛡️</div>
+          <span class="live-pill"><span class="live-dot"></span>LIVE</span>
+        </div>
+        <div class="tool-name">SOC Log Sanitizer</div>
+        <p class="tool-desc">Strip PII, credentials, IPs, usernames, SIDs, MACs, and secrets from any log format — Windows Event JSON, Syslog, CEF, Apache — with reversible token mapping.</p>
+        <div class="tool-tags">
+          <span class="tag">PII Redact</span><span class="tag">JSON KV</span><span class="tag">Reversible</span>
+          <span class="tag">CEF/Syslog</span><span class="tag">GDPR</span>
+        </div>
+        <span class="tool-link">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Launch Tool
+        </span>
+      </a>
+
+      <!-- Tool 3 — Coming Soon -->
+      <div class="tool-card coming-soon fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon purple">🔍</div>
+          <span class="soon-pill">COMING SOON</span>
+        </div>
+        <div class="tool-name">IOC Intelligence Hub</div>
+        <p class="tool-desc">Bulk lookup IPs, domains, hashes, and URLs against multiple threat intelligence feeds simultaneously. Export findings as structured reports.</p>
+        <div class="tool-tags">
+          <span class="tag">IP Lookup</span><span class="tag">Hash Check</span><span class="tag">Threat Intel</span>
+          <span class="tag">Bulk Export</span>
+        </div>
+        <span class="tool-link-disabled">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="7" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6 7V5a2 2 0 014 0v2" stroke="currentColor" stroke-width="1.3"/></svg>
+          In Development
+        </span>
+      </div>
+
+      <!-- Tool 4 — Coming Soon -->
+      <div class="tool-card coming-soon fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon red">🔐</div>
+          <span class="soon-pill">COMING SOON</span>
+        </div>
+        <div class="tool-name">Password Audit Tool</div>
+        <p class="tool-desc">Check password strength, entropy, and breach exposure. Generate strong passphrases. All hashing done locally — your passwords never leave the page.</p>
+        <div class="tool-tags">
+          <span class="tag">Entropy</span><span class="tag">HIBP Check</span><span class="tag">Local Only</span>
+        </div>
+        <span class="tool-link-disabled">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="7" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6 7V5a2 2 0 014 0v2" stroke="currentColor" stroke-width="1.3"/></svg>
+          In Development
+        </span>
+      </div>
+
+      <!-- Tool 5 — Coming Soon -->
+      <div class="tool-card coming-soon fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon amber">📋</div>
+          <span class="soon-pill">COMING SOON</span>
+        </div>
+        <div class="tool-name">PCAP Quick Analyser</div>
+        <p class="tool-desc">Upload a .pcap file and get instant protocol breakdown, top talkers, suspicious ports, and DNS/HTTP summary — without uploading to any cloud service.</p>
+        <div class="tool-tags">
+          <span class="tag">PCAP</span><span class="tag">DNS</span><span class="tag">HTTP</span>
+          <span class="tag">Network</span>
+        </div>
+        <span class="tool-link-disabled">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="7" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6 7V5a2 2 0 014 0v2" stroke="currentColor" stroke-width="1.3"/></svg>
+          In Development
+        </span>
+      </div>
+
+      <!-- Tool 6 — Coming Soon -->
+      <div class="tool-card coming-soon fade-up">
+        <div class="tool-badge-row">
+          <div class="tool-icon green">🧩</div>
+          <span class="soon-pill">COMING SOON</span>
+        </div>
+        <div class="tool-name">Regex IOC Extractor</div>
+        <p class="tool-desc">Paste any text — reports, blogs, emails — and instantly extract all IPs, domains, hashes, CVEs, URLs, and email addresses with one-click copy per category.</p>
+        <div class="tool-tags">
+          <span class="tag">IOC</span><span class="tag">CVE</span><span class="tag">Regex</span>
+          <span class="tag">Extractor</span>
+        </div>
+        <span class="tool-link-disabled">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="4" y="7" width="8" height="7" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M6 7V5a2 2 0 014 0v2" stroke="currentColor" stroke-width="1.3"/></svg>
+          In Development
+        </span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── USER AWARENESS ── -->
+<section class="services-section" id="awareness">
+  <div class="container">
+    <div class="sec-head-row fade-up">
+      <div>
+        <div class="sec-tag">🎓 Stay Safe</div>
+        <h2 class="sec-h2">Cyber Awareness</h2>
+        <p class="sec-p">The best firewall is an informed user. We publish free guides, breakdowns, and checklists on the threats that matter most right now.</p>
+      </div>
+    </div>
+    <div class="awareness-grid">
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:var(--red-bg);border:1px solid rgba(255,77,77,0.2);">🎣</div>
+        <div class="aware-title">Phishing Identification</div>
+        <p class="aware-body">Learn to spot spoofed sender addresses, lookalike domains, urgency manipulation, and malicious attachment tricks before you click.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:var(--amber-bg);border:1px solid rgba(255,181,71,0.2);">🔑</div>
+        <div class="aware-title">Password Hygiene</div>
+        <p class="aware-body">Why password reuse is catastrophic, how credential stuffing works, and a practical guide to passphrases and password managers.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:var(--blue-bg);border:1px solid rgba(77,158,255,0.2);">📱</div>
+        <div class="aware-title">MFA & Account Security</div>
+        <p class="aware-body">Not all MFA is equal. Why SMS codes can be SIM-swapped, why authenticator apps are better, and why passkeys are the future.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);">💻</div>
+        <div class="aware-title">Ransomware Defence</div>
+        <p class="aware-body">How ransomware gets in, the 3-2-1 backup rule, network segmentation basics, and what to do in the first 24 hours of an incident.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:var(--accent-dim);border:1px solid rgba(0,229,160,0.2);">🌐</div>
+        <div class="aware-title">Social Engineering</div>
+        <p class="aware-body">Vishing, pretexting, tailgating — real-world manipulation tactics attackers use and how to build a culture of healthy scepticism.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+      <div class="awareness-card fade-up">
+        <div class="aware-icon" style="background:var(--red-bg);border:1px solid rgba(255,77,77,0.2);">⚡</div>
+        <div class="aware-title">Incident Response 101</div>
+        <p class="aware-body">What to do when you suspect a breach — isolation steps, who to notify, evidence preservation basics, and when to call a professional.</p>
+        <a href="#" class="aware-link">Read Guide <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ROADMAP ── -->
+<section class="future-section" id="roadmap">
+  <div class="container">
+    <div class="sec-head-row fade-up">
+      <div>
+        <div class="sec-tag">🚀 Where We're Headed</div>
+        <h2 class="sec-h2">The Cybthreat Roadmap</h2>
+        <p class="sec-p">We're growing from a toolbox into a full cybersecurity services platform. Here's what's coming.</p>
+      </div>
+    </div>
+    <div class="roadmap-grid">
+      <div class="roadmap-card fade-up">
+        <div class="rm-phase">Phase 1 · Now</div>
+        <div class="rm-title">Free Client-Side Tools</div>
+        <p class="rm-body">Open-source, zero-server security tools that privacy-first analysts can use without worrying about data leakage. Community-built and community-maintained.</p>
+        <div class="rm-tags">
+          <span class="rm-tag">Email Analyser</span>
+          <span class="rm-tag">Log Sanitizer</span>
+          <span class="rm-tag">Open Source</span>
+        </div>
+      </div>
+      <div class="roadmap-card blue fade-up">
+        <div class="rm-phase">Phase 2 · Near Future</div>
+        <div class="rm-title">SOC-as-a-Service Platform</div>
+        <p class="rm-body">A managed Security Operations Centre offering 24/7 monitoring, alert triage, and incident response for SMEs who can't afford a full in-house team.</p>
+        <div class="rm-tags">
+          <span class="rm-tag">24/7 Monitoring</span>
+          <span class="rm-tag">Alert Triage</span>
+          <span class="rm-tag">SIEM Integration</span>
+        </div>
+      </div>
+      <div class="roadmap-card red fade-up">
+        <div class="rm-phase">Phase 3 · Mid-term</div>
+        <div class="rm-title">VAPT & Red Team Services</div>
+        <p class="rm-body">Vulnerability Assessment and Penetration Testing across web applications, APIs, internal networks, and cloud environments — with actionable remediation reports.</p>
+        <div class="rm-tags">
+          <span class="rm-tag">Web App Pentesting</span>
+          <span class="rm-tag">API Security</span>
+          <span class="rm-tag">Cloud VAPT</span>
+          <span class="rm-tag">Red Teaming</span>
+        </div>
+      </div>
+      <div class="roadmap-card purple fade-up">
+        <div class="rm-phase">Phase 4 · Vision</div>
+        <div class="rm-title">Email Threat Intelligence Service</div>
+        <p class="rm-body">A full-stack email security managed service — real-time threat feeds, custom YARA rules, business email compromise detection, and executive protection programmes.</p>
+        <div class="rm-tags">
+          <span class="rm-tag">BEC Detection</span>
+          <span class="rm-tag">Threat Feeds</span>
+          <span class="rm-tag">YARA Rules</span>
+          <span class="rm-tag">Exec Protection</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TEAM ── -->
+<section class="team-section" id="team">
+  <div class="container">
+    <div class="sec-head-row fade-up">
+      <div>
+        <div class="sec-tag">👥 The People</div>
+        <h2 class="sec-h2">Meet the Team</h2>
+        <p class="sec-p">10+ security researchers, analysts, and developers united by one mission: making the internet safer for everyone.</p>
+      </div>
+    </div>
+
+    <!-- Founder -->
+    <div class="team-founder fade-up">
+      <div class="founder-avatar">AA</div>
+      <div>
+        <div class="founder-role">Founder & Lead</div>
+        <div class="founder-name">Ali Ayman</div>
+        <p class="founder-bio">Ali founded Cybthreat with a vision to democratise access to professional-grade security tooling. A SOC analyst and security researcher, he leads a growing team of 10+ members actively building tools and knowledge resources to protect organisations of all sizes from evolving cyber threats.</p>
+      </div>
+    </div>
+
+    <!-- Team members -->
+    <div class="team-grid fade-up">
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--accent)">T1</div>
+        <div class="team-member-name">Analyst</div>
+        <div class="team-member-role">SOC · Threat Intel</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--blue)">T2</div>
+        <div class="team-member-name">Researcher</div>
+        <div class="team-member-role">Malware Analysis</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--purple)">T3</div>
+        <div class="team-member-name">Developer</div>
+        <div class="team-member-role">Tool Engineering</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--amber)">T4</div>
+        <div class="team-member-name">Analyst</div>
+        <div class="team-member-role">Incident Response</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--red)">T5</div>
+        <div class="team-member-name">Researcher</div>
+        <div class="team-member-role">Phishing & BEC</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--accent)">T6</div>
+        <div class="team-member-name">Analyst</div>
+        <div class="team-member-role">Network Security</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--blue)">T7</div>
+        <div class="team-member-name">Developer</div>
+        <div class="team-member-role">Frontend & Tools</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--purple)">T8</div>
+        <div class="team-member-name">Researcher</div>
+        <div class="team-member-role">OSINT & Recon</div>
+      </div>
+      <div class="team-card">
+        <div class="team-avatar" style="color:var(--amber)">T9</div>
+        <div class="team-member-name">Analyst</div>
+        <div class="team-member-role">Log Analysis</div>
+      </div>
+      <div class="team-card" style="border-style:dashed;cursor:pointer">
+        <div class="team-avatar" style="color:var(--text3);font-size:24px;border-style:dashed">+</div>
+        <div class="team-member-name" style="color:var(--text3)">You?</div>
+        <div class="team-member-role">Join the Team</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-inner fade-up">
+      <h2 class="cta-h2">Start Protecting Your<br/><span style="color:var(--accent)">Environment Today</span></h2>
+      <p class="cta-p">All tools are free, open-source, and work entirely in your browser. No account needed.</p>
+      <div class="cta-btns">
+        <a href="#tools" class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="2" y="12" width="12" height="2" rx="1" fill="currentColor"/></svg>
+          Launch a Free Tool
+        </a>
+        <a href="https://github.com/aymnmax" target="_blank" class="btn-outline">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="#" class="logo" style="margin-bottom:12px;display:inline-flex">
+          <span class="logo-shield"><svg width="22" height="22" viewBox="0 0 26 26" fill="none"><path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/><path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="logo-name">Cybthreat</span>
+        </a>
+        <p class="footer-tagline">An open-source security team building free tools and knowledge to defend the digital world.</p>
+      </div>
+      <div>
+        <div class="footer-col-title">Tools</div>
+        <div class="footer-links">
+          <a href="./email-analyser/index.html" class="footer-link">Email Header Analyser</a>
+          <a href="./log-sanitizer/index.html" class="footer-link">SOC Log Sanitizer</a>
+          <a href="#tools" class="footer-link">IOC Intelligence Hub (soon)</a>
+          <a href="#tools" class="footer-link">Password Audit Tool (soon)</a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Resources</div>
+        <div class="footer-links">
+          <a href="#awareness" class="footer-link">Phishing Awareness</a>
+          <a href="#awareness" class="footer-link">Password Hygiene</a>
+          <a href="#awareness" class="footer-link">Incident Response 101</a>
+          <a href="https://github.com/aymnmax" target="_blank" class="footer-link">GitHub →</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span class="footer-copy">© 2024 Cybthreat · Founded by Ali Ayman · All tools MIT licensed</span>
+      <span class="footer-love">Built with <span>♥</span> by 10+ researchers — defending the digital world</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll-triggered fade-up animation
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+  // Stagger children within grids
+  document.querySelectorAll('.tools-grid, .awareness-grid, .roadmap-grid, .team-grid').forEach(grid => {
+    grid.querySelectorAll('.fade-up').forEach((card, i) => {
+      card.style.transitionDelay = `${i * 60}ms`;
+    });
+  });
+</script>
+</body>
+</html>
