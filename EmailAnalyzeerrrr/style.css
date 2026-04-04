@@ -103,6 +103,26 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-main);
 .t-prompt{color:var(--accent)} .t-cmd{color:var(--text)} .t-out{color:var(--text2)} .t-warn{color:var(--amber)} .t-err{color:var(--red);font-weight:500}
 .t-cursor { color:var(--accent); animation:blink 1s step-end infinite; }
 
+.nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: transparent;
+  color: #a0a0b0; /* Light grayish text */
+  border: 1px solid #333; /* Subtle border */
+  border-radius: 8px;
+  text-decoration: none;
+  font-family: sans-serif;
+  transition: all 0.2s ease;
+}
+
+.nav-back:hover {
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border-color: #555;
+}
+
 /* ─── Bulk Banner ──────────────────────────────────────────────────── */
 .bulk-banner { background:var(--surface); border-bottom:1px solid var(--border2); padding:12px 0; display:none; }
 .bulk-banner.visible { display:block; }
