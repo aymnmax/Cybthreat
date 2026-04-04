@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Job Portal — Cybthreat</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0c10;--bg2:#0d1018;--bg3:#141720;
+      --surface:#161b24;--surface2:#1c2230;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+      --text:#e8eaf0;--text2:#8b93a8;--text3:#555d72;
+      --accent:#00e5a0;--accent-dim:rgba(0,229,160,0.1);
+      --red:#ff4d4d;--red-bg:rgba(255,77,77,0.1);
+      --amber:#ffb547;--amber-bg:rgba(255,181,71,0.1);
+      --blue:#4d9eff;--blue-bg:rgba(77,158,255,0.1);
+      --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+      --r:10px;--rl:14px;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+    a{color:inherit;text-decoration:none}
+    .scanline{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.022) 2px,rgba(0,0,0,0.022) 4px);pointer-events:none;z-index:999}
+
+    /* NAV */
+    .nav{position:sticky;top:0;z-index:100;background:rgba(10,12,16,.93);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .logo{display:flex;align-items:center;gap:9px;font-weight:900;font-size:18px;letter-spacing:-.03em;color:var(--text)}
+    .logo-icon{color:var(--accent)}
+    .nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:7px;border:1px solid var(--border2);transition:all .2s}
+    .nav-back:hover{color:var(--text);background:var(--surface)}
+
+    /* HERO */
+    .hero{background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);padding:64px 24px 48px;position:relative;overflow:hidden}
+    .hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 0%,transparent 80%)}
+    .hero-inner{position:relative;z-index:1;max-width:1200px;margin:0 auto}
+    .hero-tag{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(0,229,160,.2);padding:4px 12px;border-radius:20px;margin-bottom:16px;letter-spacing:.05em}
+    .blink{width:5px;height:5px;background:var(--accent);border-radius:50%;animation:blink 1.5s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+    .hero-h1{font-size:clamp(32px,5vw,52px);font-weight:900;letter-spacing:-.04em;margin-bottom:12px}
+    .hero-h1 span{color:var(--accent)}
+    .hero-sub{font-size:15px;color:var(--text2);max-width:520px;line-height:1.7;margin-bottom:28px}
+    .hero-stats{display:flex;gap:24px;flex-wrap:wrap}
+    .hstat{display:flex;flex-direction:column}
+    .hstat-n{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)}
+    .hstat-l{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+
+    /* FILTERS */
+    .filters{max-width:1200px;margin:0 auto;padding:28px 24px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .search-wrap{flex:1;min-width:220px;position:relative}
+    .search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+    .search-input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:10px 12px 10px 36px;font-family:var(--mono);font-size:13px;color:var(--text);outline:none;transition:border-color .2s}
+    .search-input::placeholder{color:var(--text3)}
+    .search-input:focus{border-color:rgba(0,229,160,.4)}
+    .filter-btn{font-family:var(--mono);font-size:11px;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .2s;white-space:nowrap}
+    .filter-btn:hover,.filter-btn.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(0,229,160,.3)}
+    .result-count{font-family:var(--mono);font-size:11px;color:var(--text3);margin-left:auto;white-space:nowrap}
+
+    /* JOB GRID */
+    .jobs-wrap{max-width:1200px;margin:0 auto;padding:24px 24px 80px}
+    .jobs-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+
+    /* JOB CARD */
+    .job-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:24px;display:flex;flex-direction:column;gap:0;transition:all .25s;position:relative;overflow:hidden}
+    .job-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+    .job-card:hover{border-color:rgba(0,229,160,.3);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+    .job-card.expired{opacity:.55;pointer-events:none}
+    .job-card.expired::before{background:linear-gradient(90deg,var(--text3),transparent)}
+
+    .job-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .job-title{font-size:17px;font-weight:800;letter-spacing:-.02em;line-height:1.3;flex:1}
+    .job-status{flex-shrink:0;display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.07em}
+    .status-live{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(0,229,160,.25)}
+    .status-live-dot{width:5px;height:5px;background:var(--accent);border-radius:50%;animation:blink 1.5s infinite}
+    .status-closed{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.25)}
+
+    .job-desc{font-size:13px;color:var(--text2);line-height:1.65;margin-bottom:16px;flex:1;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+    .job-desc.expanded{display:block;-webkit-line-clamp:unset}
+
+    .job-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+    .job-meta-item{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--text3)}
+    .job-days-left{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:10px}
+    .days-ok{background:rgba(62,207,142,.1);color:#3ecf8e;border:1px solid rgba(62,207,142,.2)}
+    .days-warn{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,181,71,.2)}
+    .days-expired{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.2)}
+
+    .job-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:auto}
+    .btn-apply{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:#001a0e;font-family:var(--font);font-size:12px;font-weight:700;padding:8px 18px;border-radius:7px;border:none;cursor:pointer;text-decoration:none;transition:all .2s}
+    .btn-apply:hover{background:#00ffb3;transform:translateY(-1px)}
+    .btn-email{display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);color:var(--blue);font-family:var(--mono);font-size:11px;font-weight:600;padding:8px 14px;border-radius:7px;border:1px solid rgba(77,158,255,.25);cursor:pointer;transition:all .2s}
+    .btn-email:hover{background:rgba(77,158,255,.18)}
+    .btn-read-more{background:none;border:none;font-family:var(--mono);font-size:10px;color:var(--text3);cursor:pointer;padding:0;margin-left:auto;transition:color .2s}
+    .btn-read-more:hover{color:var(--accent)}
+
+    /* EMPTY STATE */
+    .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:80px 24px;color:var(--text3);text-align:center}
+    .empty svg{opacity:.3}
+    .empty-title{font-size:16px;font-weight:700;color:var(--text2)}
+    .empty-sub{font-size:13px;font-family:var(--mono)}
+
+    /* SKELETON */
+    .skeleton{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:6px}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    /* LOADING */
+    .spinner{width:32px;height:32px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* RESPONSIVE */
+    @media(max-width:768px){.jobs-grid{grid-template-columns:1fr}.hero{padding:48px 20px 36px}.hero-stats{gap:16px}}
+    @media(max-width:480px){.filters{padding:20px 16px 0}.jobs-wrap{padding:16px 16px 60px}}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  </style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="../index.html" class="logo">
+      <span class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 26 26" fill="none"><path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/><path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      Cybthreat
+    </a>
+    <a href="../index.html" class="nav-back">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to Home
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag"><span class="blink"></span>CYBTHREAT CAREERS</div>
+    <h1 class="hero-h1">Cybersecurity <span>Job Portal</span></h1>
+    <p class="hero-sub">Curated cybersecurity opportunities from across the industry. Vetted by our community of 500+ security professionals.</p>
+    <div class="hero-stats">
+      <div class="hstat"><span class="hstat-n" id="statTotal">—</span><span class="hstat-l">Open Roles</span></div>
+      <div class="hstat"><span class="hstat-n" id="statNew">—</span><span class="hstat-l">Added This Week</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <input class="search-input" id="searchInput" type="text" placeholder="Search jobs..." oninput="filterJobs()"/>
+  </div>
+  <button class="filter-btn active" onclick="setFilter('all',this)">All Jobs</button>
+  <button class="filter-btn" onclick="setFilter('active',this)">Active Only</button>
+  <button class="filter-btn" onclick="setFilter('link',this)">Apply via Link</button>
+  <button class="filter-btn" onclick="setFilter('email',this)">Apply via Email</button>
+  <span class="result-count" id="resultCount"></span>
+</div>
+
+<!-- JOBS -->
+<div class="jobs-wrap">
+  <div id="loadingState" class="empty"><div class="spinner"></div></div>
+  <div class="jobs-grid" id="jobsGrid" style="display:none"></div>
+  <div id="emptyState" class="empty" style="display:none">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 5V3a2 2 0 014 0v2"/></svg>
+    <div class="empty-title">No jobs found</div>
+    <div class="empty-sub">Try adjusting your search or filters</div>
+  </div>
+</div>
+
+<script>
+const SB = supabase.createClient('https://ylidxkzjoneekstobaka.supabase.co','sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6');
+let allJobs = [];
+let currentFilter = 'all';
+
+// ── Load jobs ──
+async function loadJobs() {
+  const { data, error } = await SB.from('jobs').select('*').order('posted_at', { ascending: false });
+  if (error) { console.error(error); showEmpty(); return; }
+  allJobs = data || [];
+  updateStats();
+  renderJobs();
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('jobsGrid').style.display = 'grid';
+}
+
+function isExpired(job) {
+  return new Date(job.expires_at) < new Date();
+}
+
+function daysLeft(job) {
+  const diff = new Date(job.expires_at) - new Date();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function updateStats() {
+  const active = allJobs.filter(j => !isExpired(j));
+  const weekAgo = new Date(Date.now() - 7*24*60*60*1000);
+  const newThisWeek = active.filter(j => new Date(j.posted_at) > weekAgo);
+  document.getElementById('statTotal').textContent = active.length;
+  document.getElementById('statNew').textContent = newThisWeek.length;
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderJobs();
+}
+
+function filterJobs() { renderJobs(); }
+
+function getFiltered() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  return allJobs.filter(j => {
+    const matchSearch = !q || j.title.toLowerCase().includes(q) || j.description.toLowerCase().includes(q);
+    const exp = isExpired(j);
+    let matchFilter = true;
+    if (currentFilter === 'active')  matchFilter = !exp;
+    if (currentFilter === 'link')    matchFilter = !exp && !!j.apply_link;
+    if (currentFilter === 'email')   matchFilter = !exp && !!j.apply_email && !j.apply_link;
+    return matchSearch && matchFilter;
+  });
+}
+
+function renderJobs() {
+  const filtered = getFiltered();
+  const grid = document.getElementById('jobsGrid');
+  const empty = document.getElementById('emptyState');
+  document.getElementById('resultCount').textContent = `${filtered.length} result${filtered.length !== 1 ? 's' : ''}`;
+
+  if (!filtered.length) { grid.style.display = 'none'; empty.style.display = 'flex'; return; }
+  empty.style.display = 'none'; grid.style.display = 'grid';
+  grid.innerHTML = filtered.map(j => jobCard(j)).join('');
+}
+
+function jobCard(job) {
+  const exp = isExpired(job);
+  const dl = daysLeft(job);
+  const postedDate = new Date(job.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  let daysTag = '';
+  if (!exp) {
+    const cls = dl > 7 ? 'days-ok' : dl > 3 ? 'days-warn' : 'days-expired';
+    daysTag = `<span class="job-days-left ${cls}">${dl}d left</span>`;
+  } else {
+    daysTag = `<span class="job-days-left days-expired">Position Closed</span>`;
+  }
+
+  const statusHtml = exp
+    ? `<span class="job-status status-closed">● CLOSED</span>`
+    : `<span class="job-status status-live"><span class="status-live-dot"></span>OPEN</span>`;
+
+  let applyHtml = '';
+  if (!exp) {
+    if (job.apply_link) {
+      applyHtml = `<a href="${job.apply_link}" target="_blank" rel="noopener" class="btn-apply"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Apply Now</a>`;
+    } else if (job.apply_email) {
+      applyHtml = `<a href="mailto:${job.apply_email}" class="btn-email"><svg width="12" height="12" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M1 6l7 5 7-5" stroke="currentColor" stroke-width="1.3"/></svg>${job.apply_email}</a>`;
+    }
+  }
+
+  const shortDesc = job.description.length > 220 ? job.description.slice(0, 220) + '…' : job.description;
+
+  return `
+  <div class="job-card${exp ? ' expired' : ''}">
+    <div class="job-card-top">
+      <div class="job-title">${escHtml(job.title)}</div>
+      ${statusHtml}
+    </div>
+    <div class="job-meta">
+      <span class="job-meta-item">
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v3l2 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        ${postedDate}
+      </span>
+      ${daysTag}
+    </div>
+    <div class="job-desc" id="desc-${job.id}">${escHtml(shortDesc)}</div>
+    <div class="job-actions">
+      ${applyHtml}
+      ${job.description.length > 220 ? `<button class="btn-read-more" onclick="toggleDesc('${job.id}',\`${escHtml(job.description).replace(/`/g,'\\`')}\`)">Read more ▾</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function toggleDesc(id, full) {
+  const el = document.getElementById('desc-'+id);
+  const btn = el.nextElementSibling.querySelector('.btn-read-more');
+  if (el.classList.contains('expanded')) {
+    el.classList.remove('expanded');
+    el.textContent = full.slice(0,220) + '…';
+    btn.textContent = 'Read more ▾';
+  } else {
+    el.classList.add('expanded');
+    el.textContent = full;
+    btn.textContent = 'Show less ▴';
+  }
+}
+
+function showEmpty() {
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'flex';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadJobs();
+// Refresh every 5 minutes
+setInterval(loadJobs, 5*60*1000);
+</script>
+</body>
+</html>

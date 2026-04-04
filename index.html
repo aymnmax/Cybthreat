@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -631,28 +632,98 @@
   }
   tick(); setInterval(tick, 1000);
 
-  // Rotating news
-  const newsData = [
-    { h:'Critical Zero-Day in Windows CLFS Driver Actively Exploited by Nation-State Actor', b:'CVE-2024-49138 · CVSS 9.8 · SYSTEM privilege escalation via heap overflow. Emergency patch available.', s:'● CRITICAL', c:'sev-critical' },
-    { h:'Ivanti Connect Secure Zero-Day Used in Widespread Government Network Attacks', b:'CVE-2025-0282 · CVSS 9.0 · Unauthenticated RCE exploited before patch release. CISA issues emergency directive.', s:'● CRITICAL', c:'sev-critical' },
-    { h:'Lazarus Group Deploys New MagicRAT Variant Targeting Defence Contractors', b:'North Korean APT uses LinkedIn lures to deliver upgraded RAT with advanced anti-sandbox evasion techniques.', s:'● HIGH', c:'sev-high' },
-    { h:'PhaaS Platform Rockstar2FA Returns with Advanced 2FA Bypass Techniques', b:'Adversary-in-the-middle platform resurfaces targeting Microsoft 365 and Google Workspace accounts globally.', s:'● HIGH', c:'sev-high' },
-    { h:'New Python Infostealer Distributed via 40+ Malicious PyPI Packages', b:'Packages exfiltrating credentials, crypto wallets, and browser data from developer machines worldwide.', s:'● MEDIUM', c:'sev-medium' },
+  // ── LIVE NEWS TV — connected to Supabase ──────────────────────────
+  // Replace these two values with your Supabase project credentials
+  const SUPA_URL = 'https://ylidxkzjoneekstobaka.supabase.co';
+  const SUPA_KEY = 'sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6';
+
+  // Fallback static news (shown while DB loads, or if no articles yet)
+  const fallbackNews = [
+    { h:'Critical Zero-Day in Windows CLFS Driver Actively Exploited by Nation-State Actor', b:'CVE-2024-49138 · CVSS 9.8 · SYSTEM privilege escalation via heap overflow. Emergency patch available.', s:'● INTEL', c:'sev-critical' },
+    { h:'Ivanti Connect Secure Zero-Day Used in Widespread Government Network Attacks', b:'CVE-2025-0282 · CVSS 9.0 · Unauthenticated RCE exploited before patch release. CISA issues emergency directive.', s:'● INTEL', c:'sev-critical' },
+    { h:'Lazarus Group Deploys New MagicRAT Variant Targeting Defence Contractors', b:'North Korean APT uses LinkedIn lures to deliver upgraded RAT with advanced anti-sandbox evasion techniques.', s:'● INTEL', c:'sev-high' },
   ];
+
+  let tvNews = fallbackNews;
   let cur = 0;
-  setInterval(() => {
-    cur = (cur + 1) % newsData.length;
-    const d = newsData[cur];
+  let tvInterval = null;
+
+  function stripHtml(html) {
+    return html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  }
+
+  function updateTV(idx) {
+    const d = tvNews[idx];
     const h = document.getElementById('tvHeadline');
     const b = document.getElementById('tvBody');
     const s = document.getElementById('tvSev');
     h.style.opacity = b.style.opacity = s.style.opacity = '0';
     setTimeout(() => {
-      h.textContent = d.h; b.textContent = d.b;
-      s.textContent = d.s; s.className = 'tv-sev ' + d.c;
+      h.textContent = d.h;
+      b.textContent = d.b;
+      s.textContent = d.s;
+      s.className = 'tv-sev ' + d.c;
       h.style.opacity = b.style.opacity = s.style.opacity = '1';
     }, 400);
-  }, 5500);
+  }
+
+  function startTVRotation() {
+    if (tvInterval) clearInterval(tvInterval);
+    // Show first item immediately
+    updateTV(0); cur = 0;
+    tvInterval = setInterval(() => {
+      cur = (cur + 1) % tvNews.length;
+      updateTV(cur);
+    }, 5500);
+  }
+
+  // Update ticker bar text with live headlines
+  function updateTicker(articles) {
+    const tickerEl = document.querySelector('.ticker-inner');
+    if (!tickerEl || !articles.length) return;
+    const text = articles.map(a => `⚡ ${a.h}`).join('  ·  ') + '  ·  ';
+    tickerEl.textContent = text + text; // duplicate for seamless loop
+  }
+
+  // Load latest 3 published articles from Supabase
+  async function loadLiveNews() {
+    // Only attempt if credentials have been set
+    if (SUPA_URL === 'SUPABASE_URL_PLACEHOLDER') {
+      startTVRotation();
+      return;
+    }
+    try {
+      const SB = supabase.createClient(SUPA_URL, SUPA_KEY);
+      const { data, error } = await SB
+        .from('news')
+        .select('id, title, body, posted_at')
+        .eq('is_published', true)
+        .order('posted_at', { ascending: false })
+        .limit(3);
+
+      if (!error && data && data.length > 0) {
+        tvNews = data.map(n => ({
+          h: n.title,
+          b: stripHtml(n.body).slice(0, 160) + (stripHtml(n.body).length > 160 ? '…' : ''),
+          s: '● LIVE',
+          c: 'sev-high'
+        }));
+        updateTicker(tvNews);
+
+        // Realtime: update TV when new article is published
+        SB.channel('homepage-news')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'news' }, () => {
+            loadLiveNews();
+          })
+          .subscribe();
+      }
+    } catch(e) {
+      console.warn('Cybthreat TV: using fallback news.', e.message);
+    }
+    startTVRotation();
+  }
+
+  loadLiveNews();
 </script>
 </body>
 </html>

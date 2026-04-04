@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Threat Intelligence — Cybthreat</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0c10;--bg2:#0d1018;--bg3:#141720;
+      --surface:#161b24;--surface2:#1c2230;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+      --text:#e8eaf0;--text2:#8b93a8;--text3:#555d72;
+      --accent:#00e5a0;--accent-dim:rgba(0,229,160,0.1);
+      --red:#ff4d4d;--red-bg:rgba(255,77,77,0.1);
+      --amber:#ffb547;--amber-bg:rgba(255,181,71,0.1);
+      --blue:#4d9eff;--blue-bg:rgba(77,158,255,0.1);
+      --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+      --r:10px;--rl:14px;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+    .scanline{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.022) 2px,rgba(0,0,0,0.022) 4px);pointer-events:none;z-index:999}
+
+    /* NAV */
+    .nav{position:sticky;top:0;z-index:100;background:rgba(10,12,16,.93);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+    .nav-inner{max-width:1200px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:9px;font-weight:900;font-size:18px;letter-spacing:-.03em;color:var(--text)}
+    .logo-icon{color:var(--accent)}
+    .nav-back{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text2);padding:6px 12px;border-radius:7px;border:1px solid var(--border2);transition:all .2s;text-decoration:none}
+    .nav-back:hover{color:var(--text);background:var(--surface)}
+
+    /* HERO */
+    .hero{padding:64px 24px 48px;position:relative;overflow:hidden;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)}
+    .hero::before{content:'';position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:44px 44px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black 0%,transparent 80%)}
+    .hero-inner{position:relative;z-index:1;max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr auto;align-items:end;gap:32px}
+    .hero-tag{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--red);background:var(--red-bg);border:1px solid rgba(255,77,77,.2);padding:4px 12px;border-radius:20px;margin-bottom:16px;letter-spacing:.05em}
+    .blink{width:5px;height:5px;background:var(--red);border-radius:50%;animation:blink 1s infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+    .hero-h1{font-size:clamp(30px,4.5vw,50px);font-weight:900;letter-spacing:-.04em;margin-bottom:12px}
+    .hero-h1 span{color:var(--accent)}
+    .hero-sub{font-size:14px;color:var(--text2);max-width:500px;line-height:1.7}
+    .live-clock{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:right}
+    .live-clock .utc{font-size:22px;font-weight:700;color:var(--text);display:block;margin-bottom:2px}
+    .live-clock .label{color:var(--accent);letter-spacing:.08em}
+
+    /* TICKER BAR */
+    .ticker-bar{background:rgba(255,30,30,.08);border-top:1px solid rgba(255,77,77,.15);border-bottom:1px solid rgba(255,77,77,.15);padding:8px 0;overflow:hidden;white-space:nowrap}
+    .ticker-inner{display:inline-flex;align-items:center;gap:0;animation:tickerAnim 35s linear infinite}
+    .ticker-item{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--text2);padding:0 24px}
+    .ticker-sep{color:var(--red);opacity:.4}
+    @keyframes tickerAnim{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+    /* LAYOUT */
+    .page-wrap{max-width:1200px;margin:0 auto;padding:32px 24px 80px;display:grid;grid-template-columns:1fr 300px;gap:28px;align-items:start}
+
+    /* MAIN FEED */
+    .feed-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+    .feed-title{font-size:13px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+    .search-wrap{position:relative}
+    .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none}
+    .search-input{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:8px 12px 8px 32px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;width:200px;transition:border-color .2s}
+    .search-input::placeholder{color:var(--text3)}
+    .search-input:focus{border-color:rgba(0,229,160,.4)}
+
+    .news-feed{display:flex;flex-direction:column;gap:20px}
+
+    /* NEWS CARD */
+    .news-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);overflow:hidden;transition:all .25s;cursor:pointer}
+    .news-card:hover{border-color:rgba(0,229,160,.3);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+    .news-card-img{width:100%;height:200px;object-fit:cover;display:block;background:var(--bg3)}
+    .news-card-img-placeholder{width:100%;height:180px;background:linear-gradient(135deg,var(--bg3),var(--surface2));display:flex;align-items:center;justify-content:center;color:var(--text3)}
+    .news-card-body{padding:20px 22px 22px}
+    .news-card-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .news-date{font-family:var(--mono);font-size:10px;color:var(--text3)}
+    .news-author{font-family:var(--mono);font-size:10px;color:var(--accent);background:var(--accent-dim);padding:2px 8px;border-radius:4px}
+    .news-new-badge{font-family:var(--mono);font-size:9px;font-weight:700;color:var(--red);background:var(--red-bg);border:1px solid rgba(255,77,77,.2);padding:2px 7px;border-radius:10px;letter-spacing:.07em;animation:pulse .5s ease}
+    @keyframes pulse{0%{transform:scale(0.9)}100%{transform:scale(1)}}
+    .news-title{font-size:17px;font-weight:800;letter-spacing:-.02em;line-height:1.3;margin-bottom:10px;color:var(--text)}
+    .news-excerpt{font-size:13px;color:var(--text2);line-height:1.65;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:14px}
+    .news-read-more{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--accent);transition:gap .2s}
+    .news-read-more:hover{gap:9px}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);animation:fadeIn .2s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .modal-overlay.hidden{display:none}
+    .modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);max-width:740px;width:100%;max-height:90vh;overflow-y:auto;animation:slideUp .25s ease}
+    @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .modal-img{width:100%;max-height:320px;object-fit:cover;display:block}
+    .modal-body{padding:28px 32px 32px}
+    .modal-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .modal-title{font-size:clamp(20px,3vw,28px);font-weight:900;letter-spacing:-.03em;margin-bottom:20px;line-height:1.2}
+    .modal-content{font-size:14px;color:var(--text2);line-height:1.8}
+    .modal-content h1,.modal-content h2,.modal-content h3{color:var(--text);margin:20px 0 8px;font-weight:700}
+    .modal-content p{margin-bottom:12px}
+    .modal-content strong,.modal-content b{color:var(--text);font-weight:700}
+    .modal-content em,.modal-content i{font-style:italic;color:var(--text)}
+    .modal-content u{text-decoration:underline}
+    .modal-content ul,.modal-content ol{padding-left:20px;margin-bottom:12px}
+    .modal-content li{margin-bottom:4px}
+    .modal-content a{color:var(--accent);text-decoration:underline}
+    .modal-content blockquote{border-left:3px solid var(--accent);padding-left:14px;margin:16px 0;color:var(--text3)}
+    .modal-content img{max-width:100%;border-radius:8px;margin:10px 0}
+    .modal-content code{font-family:var(--mono);background:var(--bg3);padding:1px 6px;border-radius:3px;font-size:12px}
+    .modal-close{position:sticky;top:12px;float:right;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .2s;z-index:10;margin-left:auto;margin-bottom:-32px}
+    .modal-close:hover{color:var(--text);background:var(--surface)}
+
+    /* SIDEBAR */
+    .sidebar{display:flex;flex-direction:column;gap:16px;position:sticky;top:80px}
+    .sidebar-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:18px}
+    .sidebar-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .trend-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);align-items:flex-start;cursor:pointer;transition:opacity .2s}
+    .trend-item:last-child{border-bottom:none}
+    .trend-item:hover{opacity:.75}
+    .trend-num{font-family:var(--mono);font-size:10px;color:var(--text3);width:16px;flex-shrink:0;padding-top:2px}
+    .trend-title{font-size:12px;font-weight:700;color:var(--text);line-height:1.4}
+    .trend-date{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px}
+    .stat-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0}
+    .stat-label{font-size:12px;color:var(--text2)}
+    .stat-val{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent)}
+
+    /* LOAD MORE */
+    .load-more-wrap{display:flex;justify-content:center;margin-top:24px}
+    .btn-load-more{background:var(--surface);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:12px;padding:10px 24px;border-radius:var(--r);cursor:pointer;transition:all .2s}
+    .btn-load-more:hover{border-color:rgba(0,229,160,.3);color:var(--accent)}
+    .btn-load-more:disabled{opacity:.4;cursor:default}
+
+    /* EMPTY / LOADING */
+    .empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:60px 20px;color:var(--text3);text-align:center}
+    .spinner{width:28px;height:28px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    @media(max-width:900px){.page-wrap{grid-template-columns:1fr}.sidebar{display:none}.hero-inner{grid-template-columns:1fr}}
+    @media(max-width:600px){.hero{padding:48px 16px 36px}.page-wrap{padding:24px 16px 60px}.modal-body{padding:20px 20px 24px}}
+    ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  </style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="../index.html" class="logo" style="text-decoration:none">
+      <span class="logo-icon"><svg width="22" height="22" viewBox="0 0 26 26" fill="none"><path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/><path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Cybthreat
+    </a>
+    <a href="../index.html" class="nav-back">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to Home
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-tag"><span class="blink"></span>LIVE INTEL FEED</div>
+      <h1 class="hero-h1">Threat <span>Intelligence</span></h1>
+      <p class="hero-sub">Breaking cybersecurity news, vulnerability alerts, and threat intelligence — curated by the Cybthreat research team.</p>
+    </div>
+    <div class="live-clock">
+      <span class="utc" id="clockUtc">--:--:--</span>
+      <span class="label">UTC · LIVE</span>
+    </div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-bar">
+  <div class="ticker-inner" id="tickerInner"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="newsModal" onclick="closeModal(event)">
+  <div class="modal" id="modalContent">
+    <button class="modal-close" onclick="document.getElementById('newsModal').classList.add('hidden')">✕</button>
+    <img id="modalImg" src="" alt="" class="modal-img" style="display:none"/>
+    <div class="modal-body">
+      <div class="modal-meta" id="modalMeta"></div>
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-content" id="modalBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE -->
+<div class="page-wrap">
+  <!-- MAIN -->
+  <main>
+    <div class="feed-header">
+      <div class="feed-title">Latest Intelligence</div>
+      <div class="search-wrap">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input class="search-input" id="newsSearch" type="text" placeholder="Search news…" oninput="renderNews()"/>
+      </div>
+    </div>
+    <div id="feedLoading" class="empty"><div class="spinner"></div></div>
+    <div class="news-feed" id="newsFeed" style="display:none"></div>
+    <div id="feedEmpty" class="empty" style="display:none">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span>No articles found</span>
+    </div>
+    <div class="load-more-wrap"><button class="btn-load-more" id="loadMoreBtn" onclick="loadMore()" style="display:none">Load More</button></div>
+  </main>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-title">Feed Statistics</div>
+      <div class="stat-row"><span class="stat-label">Total Articles</span><span class="stat-val" id="sTotal">—</span></div>
+      <div class="stat-row"><span class="stat-label">This Week</span><span class="stat-val" id="sWeek">—</span></div>
+      <div class="stat-row"><span class="stat-label">Today</span><span class="stat-val" id="sToday">—</span></div>
+    </div>
+    <div class="sidebar-card">
+      <div class="sidebar-title">Trending Now</div>
+      <div id="trendingList"></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const SB = supabase.createClient('https://ylidxkzjoneekstobaka.supabase.co','sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6');
+let allNews = [];
+const PAGE_SIZE = 8;
+let shown = PAGE_SIZE;
+
+// ── Clock ──
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clockUtc').textContent = n.toUTCString().slice(17,25);
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── Load news ──
+async function loadNews() {
+  const { data, error } = await SB
+    .from('news')
+    .select('*')
+    .eq('is_published', true)
+    .order('posted_at', { ascending: false });
+
+  if (error) { console.error(error); return; }
+  allNews = data || [];
+  document.getElementById('feedLoading').style.display = 'none';
+  document.getElementById('newsFeed').style.display = 'flex';
+  renderNews();
+  renderSidebar();
+  buildTicker();
+}
+
+function isNew(article) {
+  return (Date.now() - new Date(article.posted_at)) < 24*60*60*1000;
+}
+
+function getFiltered() {
+  const q = document.getElementById('newsSearch').value.toLowerCase();
+  return allNews.filter(n => !q || n.title.toLowerCase().includes(q) || n.author.toLowerCase().includes(q));
+}
+
+function renderNews() {
+  const filtered = getFiltered();
+  const feed = document.getElementById('newsFeed');
+  const empty = document.getElementById('feedEmpty');
+  const loadBtn = document.getElementById('loadMoreBtn');
+
+  if (!filtered.length) { feed.style.display = 'none'; empty.style.display = 'flex'; loadBtn.style.display = 'none'; return; }
+  empty.style.display = 'none'; feed.style.display = 'flex';
+
+  const visible = filtered.slice(0, shown);
+  feed.innerHTML = visible.map(n => newsCard(n)).join('');
+  loadBtn.style.display = filtered.length > shown ? 'block' : 'none';
+}
+
+function loadMore() { shown += PAGE_SIZE; renderNews(); }
+
+function newsCard(article) {
+  const date = new Date(article.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const imgHtml = article.image_url
+    ? `<img src="${article.image_url}" alt="${escHtml(article.title)}" class="news-card-img" loading="lazy"/>`
+    : `<div class="news-card-img-placeholder"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity=".3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>`;
+
+  const excerpt = stripHtml(article.body).slice(0, 160) + '…';
+  const newBadge = isNew(article) ? '<span class="news-new-badge">● NEW</span>' : '';
+
+  return `
+  <div class="news-card" onclick="openModal('${article.id}')">
+    ${imgHtml}
+    <div class="news-card-body">
+      <div class="news-card-meta">
+        <span class="news-date">${date}</span>
+        <span class="news-author">${escHtml(article.author)}</span>
+        ${newBadge}
+      </div>
+      <div class="news-title">${escHtml(article.title)}</div>
+      <div class="news-excerpt">${escHtml(excerpt)}</div>
+      <span class="news-read-more">Read full article <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
+    </div>
+  </div>`;
+}
+
+function openModal(id) {
+  const article = allNews.find(n => n.id === id);
+  if (!article) return;
+  const date = new Date(article.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const img = document.getElementById('modalImg');
+  if (article.image_url) { img.src = article.image_url; img.style.display = 'block'; }
+  else img.style.display = 'none';
+  document.getElementById('modalMeta').innerHTML = `
+    <span class="news-date">${date}</span>
+    <span class="news-author">${escHtml(article.author)}</span>
+    ${isNew(article) ? '<span class="news-new-badge">● NEW</span>' : ''}`;
+  document.getElementById('modalTitle').textContent = article.title;
+  document.getElementById('modalBody').innerHTML = article.body; // HTML from rich editor
+  document.getElementById('newsModal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('newsModal')) {
+    document.getElementById('newsModal').classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { document.getElementById('newsModal').classList.add('hidden'); document.body.style.overflow = ''; }
+});
+
+function renderSidebar() {
+  const total = allNews.length;
+  const weekAgo = new Date(Date.now() - 7*24*60*60*1000);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const week = allNews.filter(n => new Date(n.posted_at) > weekAgo).length;
+  const todayCount = allNews.filter(n => new Date(n.posted_at) >= today).length;
+  document.getElementById('sTotal').textContent = total;
+  document.getElementById('sWeek').textContent = week;
+  document.getElementById('sToday').textContent = todayCount;
+  // Trending = latest 5
+  const trending = allNews.slice(0, 5);
+  document.getElementById('trendingList').innerHTML = trending.map((n,i) => `
+    <div class="trend-item" onclick="openModal('${n.id}')">
+      <span class="trend-num">0${i+1}</span>
+      <div><div class="trend-title">${escHtml(n.title)}</div><div class="trend-date">${new Date(n.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div></div>
+    </div>`).join('');
+}
+
+function buildTicker() {
+  const items = allNews.slice(0,10).map(n => `<span class="ticker-item"><span class="ticker-sep">●</span> ${escHtml(n.title)}</span>`).join('');
+  const inner = document.getElementById('tickerInner');
+  inner.innerHTML = items + items; // duplicate for seamless loop
+}
+
+function stripHtml(html) { return html.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim(); }
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+loadNews();
+// Realtime subscription for new articles
+SB.channel('news-changes').on('postgres_changes',{event:'INSERT',schema:'public',table:'news'},() => loadNews()).subscribe();
+</script>
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — Cybthreat</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Quill rich text editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet"/>
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0c10;--bg2:#0d1018;--bg3:#141720;
+      --surface:#161b24;--surface2:#1c2230;--surface3:#202736;
+      --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+      --text:#e8eaf0;--text2:#8b93a8;--text3:#555d72;
+      --accent:#00e5a0;--accent2:#00ffb3;--accent-dim:rgba(0,229,160,0.1);
+      --red:#ff4d4d;--red-bg:rgba(255,77,77,0.1);
+      --amber:#ffb547;--amber-bg:rgba(255,181,71,0.1);
+      --blue:#4d9eff;--blue-bg:rgba(77,158,255,0.1);
+      --font:'Syne',sans-serif;--mono:'JetBrains Mono',monospace;
+      --r:8px;--rl:12px;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh;display:flex;flex-direction:column}
+    input,textarea,select,button{font-family:inherit}
+
+    /* ── LOGIN SCREEN ── */
+    #loginScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+    .login-card{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:40px;width:100%;max-width:380px}
+    .login-logo{display:flex;align-items:center;gap:9px;font-weight:900;font-size:20px;letter-spacing:-.03em;color:var(--text);margin-bottom:28px;justify-content:center}
+    .login-logo svg{color:var(--accent)}
+    .login-title{font-size:18px;font-weight:800;margin-bottom:6px;text-align:center}
+    .login-sub{font-size:13px;color:var(--text2);text-align:center;margin-bottom:24px;font-family:var(--mono)}
+    .login-error{background:var(--red-bg);border:1px solid rgba(255,77,77,.3);color:var(--red);font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:var(--r);margin-bottom:16px;display:none}
+
+    /* ── LAYOUT ── */
+    .shell{display:flex;flex:1;min-height:100vh}
+    /* Sidebar */
+    .sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0}
+    .sb-logo{display:flex;align-items:center;gap:8px;padding:18px 16px;border-bottom:1px solid var(--border);font-weight:900;font-size:16px;letter-spacing:-.03em}
+    .sb-logo svg{color:var(--accent)}
+    .sb-badge{font-family:var(--mono);font-size:9px;background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.2);padding:2px 7px;border-radius:4px;letter-spacing:.07em}
+    .sb-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+    .sb-section{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;padding:8px 10px 4px;text-transform:uppercase}
+    .sb-link{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .2s;border:none;background:none;text-align:left;width:100%}
+    .sb-link:hover{color:var(--text);background:var(--surface)}
+    .sb-link.active{color:var(--accent);background:var(--accent-dim)}
+    .sb-link svg{flex-shrink:0}
+    .sb-count{margin-left:auto;font-family:var(--mono);font-size:10px;background:var(--surface2);color:var(--text3);padding:1px 7px;border-radius:10px}
+    .sb-bottom{padding:12px 8px;border-top:1px solid var(--border)}
+    .sb-user{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r)}
+    .sb-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-dim);border:1px solid rgba(0,229,160,.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);font-family:var(--mono);flex-shrink:0}
+    .sb-username{font-size:12px;font-weight:600;color:var(--text)}
+    .sb-role{font-family:var(--mono);font-size:9px;color:var(--accent)}
+
+    /* Main area */
+    .main{flex:1;overflow:auto;display:flex;flex-direction:column}
+    .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-shrink:0}
+    .topbar-title{font-size:16px;font-weight:800;letter-spacing:-.02em}
+    .topbar-actions{display:flex;gap:8px}
+
+    .content{padding:28px;flex:1}
+
+    /* ── STATS ROW ── */
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:18px 20px}
+    .stat-num{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);margin-bottom:4px}
+    .stat-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em}
+    .stat-accent{color:var(--accent)}
+    .stat-amber{color:var(--amber)}
+    .stat-red{color:var(--red)}
+    .stat-blue{color:var(--blue)}
+
+    /* ── SECTION VIEWS ── */
+    .view{display:none}
+    .view.active{display:block}
+
+    /* ── FORMS ── */
+    .form-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:24px}
+    .form-title{font-size:15px;font-weight:700;margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .form-full{grid-column:1/-1}
+    .field{display:flex;flex-direction:column;gap:6px}
+    .field label{font-size:12px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px}
+    .field label .req{color:var(--red);font-size:14px}
+    .input{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:9px 12px;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;width:100%}
+    .input::placeholder{color:var(--text3)}
+    .input:focus{border-color:rgba(0,229,160,.4)}
+    .textarea{resize:vertical;min-height:100px}
+    .field-hint{font-family:var(--mono);font-size:10px;color:var(--text3)}
+    .radio-row{display:flex;gap:12px;flex-wrap:wrap}
+    .radio-label{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text2);cursor:pointer;padding:8px 14px;border-radius:var(--r);border:1px solid var(--border2);transition:all .2s}
+    .radio-label:has(input:checked){color:var(--accent);background:var(--accent-dim);border-color:rgba(0,229,160,.3)}
+    .radio-label input{accent-color:var(--accent)}
+    .form-actions{display:flex;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);align-items:center}
+    .toast{font-family:var(--mono);font-size:12px;padding:7px 14px;border-radius:var(--r);animation:fadeIn .3s ease;display:none}
+    .toast.ok{background:rgba(62,207,142,.1);color:#3ecf8e;border:1px solid rgba(62,207,142,.2)}
+    .toast.err{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.2)}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Quill custom */
+    .ql-toolbar{background:var(--surface2) !important;border-color:var(--border2) !important;border-radius:var(--r) var(--r) 0 0}
+    .ql-container{background:var(--bg3) !important;border-color:var(--border2) !important;border-radius:0 0 var(--r) var(--r);color:var(--text);font-family:var(--font);font-size:14px;min-height:200px}
+    .ql-editor{min-height:200px;color:var(--text)}
+    .ql-toolbar .ql-stroke{stroke:var(--text2) !important}
+    .ql-toolbar .ql-fill{fill:var(--text2) !important}
+    .ql-toolbar .ql-picker-label{color:var(--text2) !important}
+    .ql-toolbar button:hover .ql-stroke,.ql-toolbar button.ql-active .ql-stroke{stroke:var(--accent) !important}
+
+    /* Image upload */
+    .img-upload{border:2px dashed var(--border2);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .2s}
+    .img-upload:hover,.img-upload.drag-over{border-color:rgba(0,229,160,.4);background:var(--accent-dim)}
+    .img-upload input{display:none}
+    .img-upload-text{font-family:var(--mono);font-size:12px;color:var(--text3)}
+    .img-preview{max-width:100%;max-height:160px;border-radius:var(--r);margin-top:10px;display:none}
+    .img-remove{font-family:var(--mono);font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;margin-top:6px;display:none}
+
+    /* ── TABLES ── */
+    .table-wrap{overflow-x:auto;border:1px solid var(--border2);border-radius:var(--rl)}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    thead th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;background:var(--surface2);border-bottom:1px solid var(--border2);white-space:nowrap}
+    tbody td{padding:12px 14px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text2)}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:hover td{background:rgba(255,255,255,.02)}
+    .td-title{font-weight:700;color:var(--text);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .td-mono{font-family:var(--mono);font-size:11px}
+    .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-family:var(--mono);font-size:9px;font-weight:700;white-space:nowrap}
+    .pill-green{background:rgba(62,207,142,.1);color:#3ecf8e;border:1px solid rgba(62,207,142,.2)}
+    .pill-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.2)}
+    .pill-amber{background:var(--amber-bg);color:var(--amber);border:1px solid rgba(255,181,71,.2)}
+    .pill-blue{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(77,158,255,.2)}
+    .action-btns{display:flex;gap:6px;align-items:center}
+    .btn-del{background:none;border:1px solid rgba(255,77,77,.2);color:var(--red);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;font-family:var(--mono)}
+    .btn-del:hover{background:var(--red-bg)}
+    .btn-toggle{background:none;border:1px solid var(--border2);color:var(--text2);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;font-family:var(--mono)}
+    .btn-toggle:hover{border-color:rgba(0,229,160,.3);color:var(--accent)}
+
+    /* BUTTONS */
+    .btn{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:9px 18px;border-radius:var(--r);border:none;cursor:pointer;transition:all .2s;font-family:var(--font)}
+    .btn-accent{background:var(--accent);color:#001a0e}.btn-accent:hover{background:var(--accent2)}
+    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+    .btn-red{background:var(--red-bg);color:var(--red);border:1px solid rgba(255,77,77,.2)}.btn-red:hover{background:rgba(255,77,77,.2)}
+    .btn-sm{padding:6px 12px;font-size:12px}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* CONFIRM DIALOG */
+    .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:flex;align-items:center;justify-content:center;padding:20px;display:none}
+    .confirm-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--rl);padding:28px;max-width:380px;width:100%;text-align:center}
+    .confirm-title{font-size:16px;font-weight:800;margin-bottom:8px}
+    .confirm-sub{font-size:13px;color:var(--text2);margin-bottom:22px}
+    .confirm-btns{display:flex;gap:10px;justify-content:center}
+
+    /* Responsive */
+    @media(max-width:768px){.sidebar{display:none}.stats-row{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.content{padding:16px}}
+    ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="24" height="24" viewBox="0 0 26 26" fill="none"><path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/><path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Cybthreat
+    </div>
+    <div class="login-title">Admin Portal</div>
+    <div class="login-sub">Sign in to manage content</div>
+    <div class="login-error" id="loginErr"></div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Email</label>
+      <input class="input" type="email" id="loginEmail" placeholder="admin@cybthreat.com" autocomplete="email"/>
+    </div>
+    <div class="field" style="margin-bottom:20px">
+      <label>Password</label>
+      <input class="input" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="doLogin()" id="loginBtn">Sign In</button>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-sub" id="confirmSub">This action cannot be undone.</div>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancel</button>
+      <button class="btn btn-red" id="confirmOkBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div class="shell" id="appShell" style="display:none">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg width="20" height="20" viewBox="0 0 26 26" fill="none"><path d="M13 2L3 6v7c0 5.5 4.3 10.7 10 12 5.7-1.3 10-6.5 10-12V6L13 2z" stroke="currentColor" stroke-width="1.6" fill="rgba(0,229,160,0.08)"/><path d="M9 13l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Cybthreat
+      <span class="sb-badge">ADMIN</span>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Overview</div>
+      <button class="sb-link active" onclick="showView('dashboard',this)">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Dashboard
+      </button>
+
+      <div class="sb-section">Jobs</div>
+      <button class="sb-link" onclick="showView('addJob',this)">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Post a Job
+      </button>
+      <button class="sb-link" onclick="showView('manageJobs',this);loadJobsTable()">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.3"/></svg>
+        Manage Jobs
+        <span class="sb-count" id="sbJobCount">—</span>
+      </button>
+
+      <div class="sb-section">News</div>
+      <button class="sb-link" onclick="showView('addNews',this)">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Write Article
+      </button>
+      <button class="sb-link" onclick="showView('manageNews',this);loadNewsTable()">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M4 6h8M4 9h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Manage Articles
+        <span class="sb-count" id="sbNewsCount">—</span>
+      </button>
+
+      <div class="sb-section">Quick Links</div>
+      <button class="sb-link" onclick="window.open('../job-portal/index.html')">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3H3a1 1 0 00-1 1v8a1 1 0 001 1h10a1 1 0 001-1V8" stroke="currentColor" stroke-width="1.3"/><path d="M10 2h4v4M14 2L8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Job Portal ↗
+      </button>
+      <button class="sb-link" onclick="window.open('../threat-news/index.html')">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 3H3a1 1 0 00-1 1v8a1 1 0 001 1h10a1 1 0 001-1V8" stroke="currentColor" stroke-width="1.3"/><path d="M10 2h4v4M14 2L8 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        News Site ↗
+      </button>
+    </nav>
+    <div class="sb-bottom">
+      <div class="sb-user">
+        <div class="sb-avatar" id="sbAvatar">A</div>
+        <div><div class="sb-username" id="sbUsername">Admin</div><div class="sb-role">Cybthreat Admin</div></div>
+      </div>
+      <button class="sb-link" onclick="doLogout()" style="margin-top:4px;color:var(--red)">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 8h7M10 5l3 3-3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M9 3H3a1 1 0 00-1 1v8a1 1 0 001 1h6" stroke="currentColor" stroke-width="1.3"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="refreshAll()">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 012.5 8M2.5 8c0-3.04 2.46-5.5 5.5-5.5 1.55 0 2.95.64 3.96 1.67" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 1v4h-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Refresh
+        </button>
+        <button class="btn btn-accent btn-sm" onclick="showView('addJob',null);document.querySelector('[onclick*=addJob]').classList.add('active')">+ New Job</button>
+        <button class="btn btn-sm" style="background:var(--blue-bg);color:var(--blue);border:1px solid rgba(77,158,255,.2)" onclick="showView('addNews',null)">+ New Article</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ── DASHBOARD ── -->
+      <div class="view active" id="view-dashboard">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-num stat-accent" id="ds-jobs">—</div><div class="stat-lbl">Active Jobs</div></div>
+          <div class="stat-card"><div class="stat-num stat-red" id="ds-expired">—</div><div class="stat-lbl">Expired Jobs</div></div>
+          <div class="stat-card"><div class="stat-num stat-blue" id="ds-news">—</div><div class="stat-lbl">Articles Published</div></div>
+          <div class="stat-card"><div class="stat-num stat-amber" id="ds-newsweek">—</div><div class="stat-lbl">Articles This Week</div></div>
+        </div>
+        <!-- Recent jobs table -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Recent Jobs</div>
+            <div class="table-wrap"><table><thead><tr><th>Title</th><th>Status</th><th>Expires</th></tr></thead><tbody id="dbJobTable"></tbody></table></div>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Recent Articles</div>
+            <div class="table-wrap"><table><thead><tr><th>Title</th><th>Author</th><th>Date</th></tr></thead><tbody id="dbNewsTable"></tbody></table></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ADD JOB ── -->
+      <div class="view" id="view-addJob">
+        <div class="form-card">
+          <div class="form-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.3"/></svg>
+            Post a New Job
+          </div>
+          <div class="form-grid">
+            <div class="field form-full">
+              <label>Job Title <span class="req">*</span></label>
+              <input class="input" id="jTitle" type="text" placeholder="e.g. SOC Analyst — Tier 2"/>
+            </div>
+            <div class="field form-full">
+              <label>Job Description <span class="req">*</span></label>
+              <textarea class="input textarea" id="jDesc" placeholder="Full job description, responsibilities, requirements..."></textarea>
+            </div>
+            <div class="field form-full">
+              <label>How to Apply</label>
+              <div class="radio-row">
+                <label class="radio-label"><input type="radio" name="applyType" value="link" checked onchange="toggleApplyType('link')"/> Apply via Link</label>
+                <label class="radio-label"><input type="radio" name="applyType" value="email" onchange="toggleApplyType('email')"/> Apply via Email</label>
+              </div>
+            </div>
+            <div class="field" id="jLinkField">
+              <label>Application URL <span class="req">*</span></label>
+              <input class="input" id="jLink" type="url" placeholder="https://careers.company.com/apply"/>
+            </div>
+            <div class="field" id="jEmailField" style="display:none">
+              <label>Application Email <span class="req">*</span></label>
+              <input class="input" id="jEmail" type="email" placeholder="careers@company.com"/>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-accent" onclick="submitJob()" id="jSubmitBtn">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+              Post Job
+            </button>
+            <button class="btn btn-ghost" onclick="resetJobForm()">Clear</button>
+            <div class="toast" id="jToast"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MANAGE JOBS ── -->
+      <div class="view" id="view-manageJobs">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Title</th><th>Type</th><th>Posted</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="jobsTableBody"></tbody>
+          </table>
+        </div>
+        <div id="jobsTableLoading" class="empty" style="padding:40px;display:flex">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+      <!-- ── ADD NEWS ── -->
+      <div class="view" id="view-addNews">
+        <div class="form-card">
+          <div class="form-title">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M4 6h8M4 9h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Write New Article
+          </div>
+          <div class="form-grid">
+            <div class="field form-full">
+              <label>Article Title <span class="req">*</span></label>
+              <input class="input" id="nTitle" type="text" placeholder="e.g. Critical Zero-Day in Windows CLFS Driver..."/>
+            </div>
+            <div class="field">
+              <label>Author / Written By <span class="req">*</span></label>
+              <input class="input" id="nAuthor" type="text" placeholder="Ali Ayman"/>
+            </div>
+            <div class="field">
+              <label>Publish Status</label>
+              <select class="input" id="nPublished">
+                <option value="true">Published (visible to users)</option>
+                <option value="false">Draft (hidden)</option>
+              </select>
+            </div>
+            <div class="field form-full">
+              <label>Cover Image <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+              <div class="img-upload" id="imgUploadArea" onclick="document.getElementById('nImgInput').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+                <input type="file" id="nImgInput" accept="image/*" onchange="handleImageSelect(event)"/>
+                <div class="img-upload-text">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin-bottom:6px;opacity:.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><br/>
+                  Click or drag &amp; drop an image here
+                </div>
+                <img id="imgPreview" class="img-preview" alt="Preview"/>
+                <button class="img-remove" id="imgRemoveBtn" onclick="event.stopPropagation();removeImage()">✕ Remove image</button>
+              </div>
+            </div>
+            <div class="field form-full">
+              <label>Article Body <span class="req">*</span></label>
+              <div id="quillEditor"></div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-accent" onclick="submitNews()" id="nSubmitBtn">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14 2L9 14l-2-5-5-2 12-5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Publish Article
+            </button>
+            <button class="btn btn-ghost" onclick="resetNewsForm()">Clear</button>
+            <div class="toast" id="nToast"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MANAGE NEWS ── -->
+      <div class="view" id="view-manageNews">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Title</th><th>Author</th><th>Posted</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="newsTableBody"></tbody>
+          </table>
+        </div>
+        <div id="newsTableLoading" class="empty" style="padding:40px;display:flex">
+          <div class="spinner"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────────────────────
+const SB = supabase.createClient('https://ylidxkzjoneekstobaka.supabase.co', 'sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6');
+
+// ── AUTH ──────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  const btn   = document.getElementById('loginBtn');
+  const err   = document.getElementById('loginErr');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { data, error } = await SB.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    err.textContent = error.message; err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+    return;
+  }
+  showApp(data.user);
+}
+
+async function doLogout() {
+  await SB.auth.signOut();
+  document.getElementById('appShell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+function showApp(user) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').style.display = 'flex';
+  const name = user.email.split('@')[0];
+  document.getElementById('sbUsername').textContent = name;
+  document.getElementById('sbAvatar').textContent = name[0].toUpperCase();
+  initQuill();
+  refreshAll();
+}
+
+// Check existing session on load
+SB.auth.getSession().then(({ data }) => {
+  if (data.session) showApp(data.session.user);
+});
+
+// ── NAV ───────────────────────────────────────────────────────────────
+const viewTitles = { dashboard:'Dashboard', addJob:'Post a Job', manageJobs:'Manage Jobs', addNews:'Write Article', manageNews:'Manage Articles' };
+function showView(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-'+id).classList.add('active');
+  document.querySelectorAll('.sb-link').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('topbarTitle').textContent = viewTitles[id] || id;
+}
+
+// ── QUILL ─────────────────────────────────────────────────────────────
+let quill;
+function initQuill() {
+  if (quill) return;
+  quill = new Quill('#quillEditor', {
+    theme: 'snow',
+    placeholder: 'Write your article here…',
+    modules: {
+      toolbar: [
+        [{ header: [1,2,3,false] }],
+        ['bold','italic','underline','strike'],
+        [{ color:[] },{ background:[] }],
+        ['blockquote','code-block'],
+        [{ list:'ordered' },{ list:'bullet' }],
+        [{ align:[] }],
+        ['link','image'],
+        ['clean']
+      ]
+    }
+  });
+}
+
+// ── IMAGE UPLOAD ──────────────────────────────────────────────────────
+let selectedImageFile = null;
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if (file) previewImage(file);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('imgUploadArea').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) previewImage(file);
+}
+function previewImage(file) {
+  selectedImageFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const preview = document.getElementById('imgPreview');
+    preview.src = ev.target.result;
+    preview.style.display = 'block';
+    document.getElementById('imgRemoveBtn').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+function removeImage() {
+  selectedImageFile = null;
+  document.getElementById('imgPreview').style.display = 'none';
+  document.getElementById('imgPreview').src = '';
+  document.getElementById('imgRemoveBtn').style.display = 'none';
+  document.getElementById('nImgInput').value = '';
+}
+async function uploadImage(file) {
+  const ext = file.name.split('.').pop();
+  const name = `${Date.now()}.${ext}`;
+  const { data, error } = await SB.storage.from('news-images').upload(name, file, { upsert: true });
+  if (error) throw error;
+  const { data: urlData } = SB.storage.from('news-images').getPublicUrl(name);
+  return urlData.publicUrl;
+}
+
+// ── JOB FORM ──────────────────────────────────────────────────────────
+function toggleApplyType(type) {
+  document.getElementById('jLinkField').style.display  = type === 'link'  ? '' : 'none';
+  document.getElementById('jEmailField').style.display = type === 'email' ? '' : 'none';
+}
+
+async function submitJob() {
+  const title = document.getElementById('jTitle').value.trim();
+  const desc  = document.getElementById('jDesc').value.trim();
+  const type  = document.querySelector('input[name=applyType]:checked').value;
+  const link  = document.getElementById('jLink').value.trim();
+  const email = document.getElementById('jEmail').value.trim();
+
+  if (!title || !desc) { showToast('jToast','Please fill in title and description.','err'); return; }
+  if (type === 'link' && !link)   { showToast('jToast','Please provide an application URL.','err'); return; }
+  if (type === 'email' && !email) { showToast('jToast','Please provide an application email.','err'); return; }
+
+  const btn = document.getElementById('jSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Posting…';
+
+  const payload = { title, description: desc, apply_link: type==='link' ? link : null, apply_email: type==='email' ? email : null };
+  const { error } = await SB.from('jobs').insert([payload]);
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 5v6M5 8h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg> Post Job';
+  if (error) { showToast('jToast','Error: '+error.message,'err'); return; }
+  showToast('jToast','✓ Job posted successfully!','ok');
+  resetJobForm();
+  refreshAll();
+}
+
+function resetJobForm() {
+  ['jTitle','jDesc','jLink','jEmail'].forEach(id => document.getElementById(id).value = '');
+  document.querySelector('input[name=applyType][value=link]').checked = true;
+  toggleApplyType('link');
+}
+
+// ── NEWS FORM ─────────────────────────────────────────────────────────
+async function submitNews() {
+  const title   = document.getElementById('nTitle').value.trim();
+  const author  = document.getElementById('nAuthor').value.trim();
+  const pub     = document.getElementById('nPublished').value === 'true';
+  const body    = quill ? quill.root.innerHTML : '';
+
+  if (!title || !author || !body || body === '<p><br></p>') {
+    showToast('nToast','Please fill in all required fields.','err'); return;
+  }
+
+  const btn = document.getElementById('nSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+
+  let imageUrl = null;
+  if (selectedImageFile) {
+    try { imageUrl = await uploadImage(selectedImageFile); }
+    catch(e) { showToast('nToast','Image upload failed: '+e.message,'err'); btn.disabled=false; btn.textContent='Publish Article'; return; }
+  }
+
+  const payload = { title, author, body, image_url: imageUrl, is_published: pub };
+  const { error } = await SB.from('news').insert([payload]);
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M14 2L9 14l-2-5-5-2 12-5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg> Publish Article';
+  if (error) { showToast('nToast','Error: '+error.message,'err'); return; }
+  showToast('nToast','✓ Article published!','ok');
+  resetNewsForm();
+  refreshAll();
+}
+
+function resetNewsForm() {
+  document.getElementById('nTitle').value = '';
+  document.getElementById('nAuthor').value = '';
+  if (quill) quill.setContents([]);
+  removeImage();
+}
+
+// ── JOBS TABLE ────────────────────────────────────────────────────────
+async function loadJobsTable() {
+  document.getElementById('jobsTableLoading').style.display = 'flex';
+  document.getElementById('jobsTableBody').innerHTML = '';
+  const { data } = await SB.from('jobs').select('*').order('posted_at',{ascending:false});
+  document.getElementById('jobsTableLoading').style.display = 'none';
+  if (!data?.length) { document.getElementById('jobsTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:24px;font-family:var(--mono);font-size:12px">No jobs yet</td></tr>'; return; }
+  document.getElementById('jobsTableBody').innerHTML = data.map(j => {
+    const exp = new Date(j.expires_at) < new Date();
+    const posted = new Date(j.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const expires = new Date(j.expires_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    const type = j.apply_link ? '<span class="pill pill-blue">LINK</span>' : '<span class="pill pill-amber">EMAIL</span>';
+    const status = exp ? '<span class="pill pill-red">EXPIRED</span>' : '<span class="pill pill-green">ACTIVE</span>';
+    return `<tr>
+      <td class="td-title">${escHtml(j.title)}</td>
+      <td>${type}</td>
+      <td class="td-mono">${posted}</td>
+      <td class="td-mono">${expires}</td>
+      <td>${status}</td>
+      <td><div class="action-btns">
+        <button class="btn-del" onclick="confirmDelete('jobs','${j.id}',loadJobsTable)">Delete</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── NEWS TABLE ────────────────────────────────────────────────────────
+async function loadNewsTable() {
+  document.getElementById('newsTableLoading').style.display = 'flex';
+  document.getElementById('newsTableBody').innerHTML = '';
+  const { data } = await SB.from('news').select('*').order('posted_at',{ascending:false});
+  document.getElementById('newsTableLoading').style.display = 'none';
+  if (!data?.length) { document.getElementById('newsTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px;font-family:var(--mono);font-size:12px">No articles yet</td></tr>'; return; }
+  document.getElementById('newsTableBody').innerHTML = data.map(n => {
+    const posted = new Date(n.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+    const status = n.is_published ? '<span class="pill pill-green">PUBLISHED</span>' : '<span class="pill pill-amber">DRAFT</span>';
+    return `<tr>
+      <td class="td-title">${escHtml(n.title)}</td>
+      <td class="td-mono" style="color:var(--accent)">${escHtml(n.author)}</td>
+      <td class="td-mono">${posted}</td>
+      <td>${status}</td>
+      <td><div class="action-btns">
+        <button class="btn-toggle" onclick="togglePublish('${n.id}',${n.is_published})">${n.is_published ? 'Unpublish' : 'Publish'}</button>
+        <button class="btn-del" onclick="confirmDelete('news','${n.id}',loadNewsTable)">Delete</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+async function togglePublish(id, current) {
+  await SB.from('news').update({ is_published: !current }).eq('id', id);
+  loadNewsTable(); refreshAll();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [{ data: jobs }, { data: news }] = await Promise.all([
+    SB.from('jobs').select('*').order('posted_at',{ascending:false}),
+    SB.from('news').select('*').order('posted_at',{ascending:false})
+  ]);
+  const now = new Date();
+  const weekAgo = new Date(Date.now() - 7*24*60*60*1000);
+  const active  = (jobs||[]).filter(j => new Date(j.expires_at) > now).length;
+  const expired = (jobs||[]).filter(j => new Date(j.expires_at) <= now).length;
+  const pubNews = (news||[]).filter(n => n.is_published).length;
+  const weekNews= (news||[]).filter(n => new Date(n.posted_at) > weekAgo).length;
+
+  document.getElementById('ds-jobs').textContent = active;
+  document.getElementById('ds-expired').textContent = expired;
+  document.getElementById('ds-news').textContent = pubNews;
+  document.getElementById('ds-newsweek').textContent = weekNews;
+  document.getElementById('sbJobCount').textContent = active;
+  document.getElementById('sbNewsCount').textContent = pubNews;
+
+  document.getElementById('dbJobTable').innerHTML = (jobs||[]).slice(0,5).map(j => {
+    const exp = new Date(j.expires_at) < now;
+    return `<tr><td class="td-title" style="max-width:160px">${escHtml(j.title)}</td><td>${exp?'<span class="pill pill-red">EXPIRED</span>':'<span class="pill pill-green">ACTIVE</span>'}</td><td class="td-mono">${new Date(j.expires_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:16px;font-size:12px">No jobs</td></tr>';
+
+  document.getElementById('dbNewsTable').innerHTML = (news||[]).slice(0,5).map(n => {
+    return `<tr><td class="td-title" style="max-width:160px">${escHtml(n.title)}</td><td class="td-mono" style="color:var(--accent)">${escHtml(n.author)}</td><td class="td-mono">${new Date(n.posted_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:16px;font-size:12px">No articles</td></tr>';
+}
+
+function refreshAll() { loadDashboard(); }
+
+// ── DELETE CONFIRM ────────────────────────────────────────────────────
+let _delCb = null;
+function confirmDelete(table, id, cb) {
+  _delCb = async () => {
+    if (table === 'news') {
+      // also delete image from storage if exists
+      const { data } = await SB.from('news').select('image_url').eq('id',id).single();
+      if (data?.image_url) {
+        const name = data.image_url.split('/').pop();
+        await SB.storage.from('news-images').remove([name]);
+      }
+    }
+    await SB.from(table).delete().eq('id', id);
+    closeConfirm(); cb();
+  };
+  document.getElementById('confirmTitle').textContent = 'Delete this item?';
+  document.getElementById('confirmSub').textContent = 'This cannot be undone. The item will be permanently removed.';
+  document.getElementById('confirmOkBtn').onclick = _delCb;
+  document.getElementById('confirmOverlay').style.display = 'flex';
+}
+function closeConfirm() { document.getElementById('confirmOverlay').style.display = 'none'; }
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function showToast(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'toast '+type;
+  el.style.display = 'inline-flex';
+  setTimeout(() => el.style.display='none', 4000);
+}
+
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
