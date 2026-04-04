@@ -63,17 +63,30 @@
 </div>
 
 <script>
-  const SB = supabase.createClient('https://ylidxkzjoneekstobaka.supabase.co', 'sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6');
+    
+const SB = supabase.createClient('https://ylidxkzjoneekstobaka.supabase.co', 'sb_publishable_4NuDJYNw0PBplKmaOyIFlw_eF4j2cc6');
 
-  // Detect session from invite link automatically
-  SB.auth.onAuthStateChanged((event, session) => {
-    if (session) {
-      document.getElementById('loadingScreen').style.display = 'none';
-      document.getElementById('setupCard').style.display = 'block';
-    } else {
-      document.getElementById('loadingScreen').textContent = "Invalid or expired invitation link.";
-    }
-  });
+// Function to toggle visibility
+function showSetupCard(session) {
+  if (session) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('setupCard').style.display = 'block';
+  } else {
+    document.getElementById('loadingScreen').textContent = "Invalid or expired invitation link.";
+  }
+}
+
+// 1. Check immediately on load (handles the initial redirect)
+SB.auth.getSession().then(({ data: { session } }) => {
+  showSetupCard(session);
+});
+
+// 2. Also listen for the state change just in case
+SB.auth.onAuthStateChanged((event, session) => {
+  if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+    showSetupCard(session);
+  }
+});
 
   async function handleSetup() {
     const p1 = document.getElementById('pass1').value;
